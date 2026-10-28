@@ -1,13 +1,16 @@
 import mongoose from "mongoose";
 import {DB_NAME} from "../constants.js";
+import dns from "node:dns";
+
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 const connectDB = async () => {
     try{
-        const connectionInstance = await mongoose.connect(`${MONGODB_URI}/${DB_NAME}`);
+        const connectionInstance = await mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`);
         console.log(`DB is connected at host ${connectionInstance.connection.host}`);
     }
     catch(error){
-        console.log("DB connection FAILED!");
+        console.log("DB connection FAILED!",error);
         process.exit(1);
     } 
 }
