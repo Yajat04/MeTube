@@ -11,5 +11,5 @@ const storage = multer.diskStorage({
 })
 
 export const upload = multer({
-    storage
+    storage //auto depicts storage(the multer attribute) : storage(the new variable above)
 })
