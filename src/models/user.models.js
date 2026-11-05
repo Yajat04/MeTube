@@ -1,4 +1,6 @@
 import mongoose, {Schema} from "mongoose";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const userSchema = new Schema(
     {
@@ -90,15 +92,22 @@ userSchema.methods.makeRefreshToken = function(){
 }
 
 userSchema.pre("save", async function(next){
-    if(!(this.isModified("password"))) return next();
-    this.password = await bcrypt(this.password, 10);
-    next();
+    if(!(this.isModified("password"))) return;
+    this.password = await bcrypt.hash(this.password, 10);
 })
+
+
+// userSchema.pre("save", async function(next){
+//     if(!(this.isModified("password"))) return next();
+//     this.password = await bcrypt.hash(this.password, 10);
+//     next();
+// })
 
 //next	-> Refers to the callback function
 //next() -> Executes the callback
 //return next()	Executes the callback and exits the current function immediately after next() is executed successfully, therefore it is used just to ignore the beneath code
 //at the end no return as it is not required since no extra code is there and curr ft auto ends 
 
+//But in modern times if using the async then no need of using next() as function 
 
 export const User = mongoose.model("User", userSchema);

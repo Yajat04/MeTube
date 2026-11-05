@@ -19,7 +19,6 @@ const userRegister = asyncHandler(async (req, res) => { //passes the request usi
     // check user
 
     const {fullName, username, email, password} = req.body
-    console.log(email)
     
     if(
         [fullName, username, email, password].some(
@@ -29,7 +28,7 @@ const userRegister = asyncHandler(async (req, res) => { //passes the request usi
         throw new ApiError(400, "All fields are required")
     }
 
-    const userExists = User.findOne(
+    const userExists = await User.findOne(
         {
             $or: [{ username }, { email }]
         }
@@ -40,9 +39,8 @@ const userRegister = asyncHandler(async (req, res) => { //passes the request usi
     }
 
     // get path of imgs etc on local where multer stores it
-
-    const avatarLocalPath = req.files?.avatar[0]?.path
-    const coverImageLocalPath = req.files?.coverImage[0]?.path
+    const avatarLocalPath = req.files?.avatar?.[0]?.path
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path
 
     if(!avatarLocalPath){
         throw new ApiError(409, "Avatar is required")
@@ -51,21 +49,26 @@ const userRegister = asyncHandler(async (req, res) => { //passes the request usi
     // upload on cloudinary
     const avatarOnCloudinary = await uploadOnCloudinary(avatarLocalPath) 
 
-    let coverImageOnCloudinary
+    let coverImageOnCloudinary = null
     if(coverImageLocalPath){
         coverImageOnCloudinary = await uploadOnCloudinary(coverImageLocalPath) 
-    } 
+    } //handles if user didnt send coverImg
+
+    // another beautiful check
+    // if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+    //coverImageLocalPath = req.files.coverImage[0].path;
+    //}
 
     if(!avatarOnCloudinary){
-        throw new ApiError(409, "Avatar is required")
+        throw new ApiError(409, "Unable to fetch Avatar")
     }
 
     const user = await User.create({
         fullName,
         avatar : avatarOnCloudinary.url,
-        coverImage : coverImageOnCloudinary?.url,
-        email,
-        username,
+        coverImage : coverImageOnCloudinary?.url || "",
+        email : email.toLowerCase(),
+        username : username.toLowerCase(),
         password,
         // refreshToken and watch history are not given by user
     })
