@@ -4,7 +4,21 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.models.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
-const userRegister = asyncHandler(async (req, res) => { //passes the request using the express objects (req, res, next) to asyncH
+const generateAcessAndRefreshTokens = async (id) => {
+    try {
+        const user = User.findById(id);
+        const accessToken = user.makeAccessToken
+        const refreshToken = user.makeRefreshToken
+
+        user.refreshToken = refreshToken
+        user.save({validateBeforeSave : false})
+        return {accessToken, refreshToken}
+    } catch (error) {
+        throw new ApiError("400", "Unable to generate tokens")
+    }
+}
+
+const registerUser = asyncHandler(async (req, res) => { //passes the request using the express objects (req, res, next) to asyncH
     //no need to return here as asynH does it for this 
     
     //Steps required to register a user
@@ -88,4 +102,83 @@ const userRegister = asyncHandler(async (req, res) => { //passes the request usi
 }//this whole ft goes as asyncH argument and get executed with the promise check
 )
 
-export {userRegister}
+const loginUser = asyncHandler(async (req, res) => {
+    // req body -> data (form frontEnd)
+    // check for username or email
+    // check if user exists, if not signUp
+    // check password
+    // validate access token
+    // if no access token, validate for refresh token
+
+    const {email, username, password} = req.body //it depends on your frontend what you have given at this point of login
+
+    if(!email || !username) throw new ApiError(400, "Email and username required")
+
+    const user = await User.findOne({
+        $or : [{username}, {email}]
+    })
+    if(!user) throw new ApiError(404, "User does not exist, please SignUp to continue")
+
+    //The custom methods that we have made in User Model cannot be accessed directly by User object here, 
+    // it can be accessed by the response instance of the user ie "user" above
+    const isCorrectPassword = await user.isvalidPassword(password)
+    if(!isCorrectPassword) throw new ApiError(401, "Incorrect Password")
+    
+    // Now if password is valid it gonna generate refresh and access tokens -> repeated step therefore make method for it
+    const {accessToken, refreshToken} = await generateAcessAndRefreshTokens(user._id)
+
+    //Now the user doc is updated and we have the old instance stored therefore need to have the updated one
+    const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
+
+    const options = {
+        httpOnly : true,
+        secure : true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+
+        "user Logged in Successfully"
+        )
+    )
+})
+
+const logoutUser = asyncHandler(async (req, res) => {
+    // We must flush all cookies
+    // but how would you access the user while logging out you wont be getting any entries to match in db like form etc at the time of login
+    // hence Middleware to be used to do this functionality
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {refreshToken: undefined}
+        },
+        {
+            new: true // returns the user with updated details =, at default it returns the before update one
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(400, {}, "User logged out Successfully"))
+
+
+})
+
+export { registerUser, loginUser, logoutUser} 
