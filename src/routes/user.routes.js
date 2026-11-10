@@ -1,4 +1,4 @@
-import { registerUser, loginUser, logoutUser } from "../controllers/user.contoller.js"; 
+import { registerUser, loginUser, logoutUser, refreshAccessToken } from "../controllers/user.contoller.js"; 
 import {Router} from "express";
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -22,6 +22,7 @@ router.route("/register").post(
 
 router.route("/login").post(loginUser)
 
-router.route("/login").post(verifyJWT, loginUser)
+router.route("/logout").post(verifyJWT, logoutUser)
+router.route("/refresh-Token").post(refreshAccessToken) //When to send or not (end point creation) handled by frontend
 
 export default router

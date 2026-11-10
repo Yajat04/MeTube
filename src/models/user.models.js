@@ -64,7 +64,7 @@ userSchema.methods.makeAccessToken = function(){
     return jwt.sign(
         {//all these attributes below is payload and they are defined by us, these att inly be responsible to verify the token
             _id: this._id, //mongoDB creates unique id for each user
-            password: this.password,
+            //password: this.password,
             username: this.username,
             fullName: this.fullName,
         },
