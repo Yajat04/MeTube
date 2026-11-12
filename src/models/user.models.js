@@ -89,8 +89,9 @@ userSchema.methods.makeRefreshToken = function(){
             expiresIn: process.env.REFRESH_TOKEN_EXPIRY_KEY
         }
     )
-}
+} 
 
+// this runs just before saving, helps hashing the password again when changed or saved 
 userSchema.pre("save", async function(next){
     if(!(this.isModified("password"))) return;
     this.password = await bcrypt.hash(this.password, 10);
