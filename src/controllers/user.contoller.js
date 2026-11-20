@@ -383,4 +383,88 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     )
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword, getUserDetails, updateUserDetails, updateAvatar, updateCoverImage} 
+// let us suppose some videos are present on the app by other users, and we need to get history of the videos watched by us
+const getWatchHistory = asyncHandler(async (req, res) => {
+    // To do : 
+    // PIPELINE:
+    // Need to fetch mongoDB id of logged in user
+    // get the watchHistory array (priorly created when the user watched the videos) which contains mongoDB id of videos (video schema)
+
+    // SUBPIPELINE or Nested PL
+    // for each id we need to lookup for the owner details (owner itself is one of the users on the system), therefore look in user schema
+    // the owner field rep the user id matching for lookup, then fetch the user details
+
+    //gives or stores array 
+    const user = await User.aggregate([ 
+        // we aggregate on that model from where we need to initiate the pipeline
+        // Aggregation allows you to join multiple collections regardless of which collection you initially called .aggregate() on
+        // like here videos and users both are using lookup
+        {
+            $match: {
+                _id : new mongoose.Types.ObjectId(req.user._id) //means the user is logged in then only user can be present in req
+            }
+        },
+        {
+            $lookup: {
+                from: "videos", // the mongoDB model name 
+                localField: "watchHistory", // watchHistory is array, the lookup automatically checks for whole array (each el)
+                foreignField: "_id", // The video id 
+                as: "watchHistory", // contains array of all video details in watchHistory
+                // given the same name, it overwrites the original array in the aggregate output scope, not in db
+
+                // but we want user details not videos, hence look for owner
+                // SubPL
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner", //as per video schema
+                            foreignField: "_id",
+                            as: "owner", // array of userdetail obj -> size will be 1 
+                            // overwrites the owner field with actual details in the aggregate output space
+
+                            pipeline: [
+                                { // Every nested $lookup pipeline has its own current document scope. $project operates on that scope,
+                                    // it is gonna take fields to project from the userdetails field 
+                                    // it could be made sequential, but then we need to specify for the other details of the videos
+                                    // here it only rep the owner details
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    }
+                                },
+                                {
+                                    // To organise better
+                                    $addFields: {
+                                        // overwrite owner with the single owner instead of array of size 1
+                                        owner: {
+                                            $first: "$userDetails"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+
+                    }
+                ]
+                // why nested instead of sequentail?
+                // As in sequential, But this creates a separate ownerDetails array at the top level of the logged-in user's document.
+                // It doesn't directly place owner details inside their respective video documents.
+                // and we need to project the owner details only
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            user[0].watchHistory,
+            "Watch history is fetched successfully"
+        )
+    )
+})
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword, getUserDetails, updateUserDetails, updateAvatar, updateCoverImage, getUserChannelProfile, getWatchHistory} 

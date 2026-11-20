@@ -47,5 +47,6 @@ const videoSchema = new Schema(
 ) 
 
 videoSchema.plugin(mongooseAggregatepaginate)
+//separate controller is to be made for tasks like : upload video, get own videos, delete video, edit etc... which aint part of user controller
 
 export const Video = mongoose.model("Video", videoSchema);
